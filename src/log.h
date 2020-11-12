@@ -15,11 +15,16 @@
 
 #define LOG_VERSION "0.1.0"
 
+#define TIME_MSEC 1
+
 typedef struct {
   va_list ap;
   const char *fmt;
   const char *file;
   const char *func;
+#ifdef TIME_MSEC
+  unsigned int usec;
+#endif
   struct tm *time;
   void *udata;
   int line;

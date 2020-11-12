@@ -22,6 +22,9 @@
 
 #include "log.h"
 
+#ifdef TIME_MSEC
+#include <sys/time.h>
+#endif
 #define MAX_CALLBACKS 32
 
 typedef struct {
@@ -52,7 +55,12 @@ static const char *level_colors[] = {
 
 static void stdout_callback(log_Event *ev) {
   char buf[32];
-  buf[strftime(buf, sizeof(buf), "%H:%M:%S", ev->time)] = '\0';
+
+  int length = strftime(buf, sizeof(buf), "%H:%M:%S", ev->time);
+#ifdef TIME_MSEC
+  length = sprintf(buf, "%s.%03d", buf, ev->usec/1000);
+#endif
+  buf[length] = '\0';
 #ifdef LOG_USE_COLOR
   fprintf(
     ev->udata, "%s %s%-5s\x1b[0m \x1b[90m%s:%s:%d:\x1b[0m ",
@@ -71,7 +79,11 @@ static void stdout_callback(log_Event *ev) {
 
 static void file_callback(log_Event *ev) {
   char buf[64];
-  buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
+  int length = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time);
+#ifdef TIME_MSEC
+  length = sprintf(buf, "%s.%03d", buf, ev->usec/1000);
+#endif
+  buf[length] = '\0';
   fprintf(
     ev->udata, "%s %-5s %s:%s:%d: ",
     buf, level_strings[ev->level], ev->file, ev->func, ev->line);
@@ -129,10 +141,20 @@ int log_add_fp(FILE *fp, int level) {
 
 
 static void init_event(log_Event *ev, void *udata) {
+#ifdef TIME_MSEC
+  if (!ev->time) {
+    struct timeval tp;
+    gettimeofday(&tp, 0);
+    ev->usec = tp.tv_usec;
+    time_t curtime = tp.tv_sec;
+    ev->time = localtime(&curtime);;
+  }
+#else
   if (!ev->time) {
     time_t t = time(NULL);
     ev->time = localtime(&t);
   }
+#endif
   ev->udata = udata;
 }
 
